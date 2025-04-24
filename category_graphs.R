@@ -23,6 +23,7 @@ extract_avg_solar_noons <- function(dataDF) {
     avgDF$Flat[avgDF$Time == hourValue] = flatAvg
     avgDF$Angled[avgDF$Time == hourValue] = angledAvg
   }
+
   plot(avgDF$Time, avgDF$Flat)
   plot(avgDF$Time, avgDF$Angled)
   noonDF <- subset(avgDF, hour(avgDF$Time) == 12)
@@ -32,6 +33,7 @@ extract_avg_solar_noons <- function(dataDF) {
   fullSunAvgDF
   order(fullSunAvgDF[[1]])
   fullSunAvgDF[order(fullSunAvgDF[[1]]),]
+
   noonDF <- subset(avgDF, hour(avgDF$Time) == 12)
   return(noonDF)
 }
@@ -52,7 +54,6 @@ ggplot_solar_noon <- function(dataDF) {
   ) + 
   geom_point() +
   geom_line()
-
 }
 
 locationsDF <- read_csv("location_details.csv", col_types = cols(
