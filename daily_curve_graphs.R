@@ -129,4 +129,3 @@ ggplot(
     y=expression("Solar Irradiance (W/m"^2*")"),
     title= "Average Daily Solar Irradiance (All)"
   )
-
