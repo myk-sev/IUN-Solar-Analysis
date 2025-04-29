@@ -122,8 +122,10 @@ ggplot(
   )
 
 
+### Ratio Graph ###
+ratioSpecific <- subset(averagesDF, (!is.nan(Flat) & !is.nan(Angled)))
 ggplot(
-  data=averagesDF,
+  data=ratioSpecific,
   mapping=aes( x=Time, y=Ratio, color=Weather)
 ) +
   geom_point(size = 3) +
