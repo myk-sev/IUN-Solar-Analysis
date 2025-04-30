@@ -99,8 +99,10 @@ relevantDF <- data.frame(
 averagesDF <- extract_interval_averages_expanded(relevantDF)
 averagesDF$Ratio <- averagesDF$Angled / averagesDF$Flat
 
+### Flat Graph ###
+flatSpecific <- subset(averagesDF, !is.nan(Flat))
 ggplot(
-  data=averagesDF,
+  data=flatSpecific,
   mapping=aes( x=Time, y=Flat, color=Weather)
 ) +
   geom_point(size = 3) +
@@ -108,10 +110,14 @@ ggplot(
   labs(
     y=expression("Solar Irradiance (W/m"^2*")"),
     title= "Average Solar Irradiance (0°)"
-  )
+  ) +
+  theme_minimal(base_size=15)
+  #theme_minimal()
 
+### Angled Graph ###
+angleSpecific <- subset(averagesDF, !is.nan(Angled))
 ggplot(
-  data=averagesDF,
+  data=angleSpecific,
   mapping=aes( x=Time, y=Angled, color=Weather)
 ) +
   geom_point(size = 3) +
@@ -119,7 +125,8 @@ ggplot(
   labs(
     y=expression("Solar Irradiance (W/m"^2*")"),
     title= "Average Solar Irradiance (42°)"
-  )
+  ) +
+  theme_minimal(base_size=15)
 
 
 ### Ratio Graph ###
@@ -128,9 +135,13 @@ ggplot(
   data=ratioSpecific,
   mapping=aes( x=Time, y=Ratio, color=Weather)
 ) +
-  geom_point(size = 3) +
-  geom_line(linewidth=1) +
+  geom_point(size = 5) +
+  geom_line(linewidth=2) +
   labs(
-    y=expression("Solar Irradiance (W/m"^2*")"),
+    y="Ratio",
     title= "Average Solar Irradiance (42° : 0°)"
-  )
+  ) +
+  theme_minimal(base_size=25) +
+  geom_hline(yintercept = 1, linetype = "dashed")
+
+             
