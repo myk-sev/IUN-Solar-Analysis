@@ -110,8 +110,8 @@ ggplot(
   data = allNoonsDF,
   mapping = aes(x=Time, y=Flat, color=Category)
 ) + 
-  geom_point() +
-  geom_line(linewidth = 1.75) +
+  geom_point(size=3) +
+  geom_line(linewidth = 1) +
   labs(
     color="Location Type", 
     x="Date", 
