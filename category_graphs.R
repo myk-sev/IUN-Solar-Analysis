@@ -24,16 +24,6 @@ extract_avg_solar_noons <- function(dataDF) {
     avgDF$Angled[avgDF$Time == hourValue] = angledAvg
   }
 
-  plot(avgDF$Time, avgDF$Flat)
-  plot(avgDF$Time, avgDF$Angled)
-  noonDF <- subset(avgDF, hour(avgDF$Time) == 12)
-  plot(noonDF$Time, noonDF$Flat)
-  plot(noonDF$Time, noonDF$Angled)
-  fullSunSolarNoonDF
-  fullSunAvgDF
-  order(fullSunAvgDF[[1]])
-  fullSunAvgDF[order(fullSunAvgDF[[1]]),]
-
   noonDF <- subset(avgDF, hour(avgDF$Time) == 12)
   return(noonDF)
 }
@@ -92,10 +82,6 @@ fullShadeDF <- subset(relevantDF, relevantDF$Category == "Full Shade")
 fullSunDF <- subset(relevantDF, relevantDF$Category == "Full Sun")
 partialShadeDF <- subset(relevantDF, relevantDF$Category == "Partial Shade")
 
-plot_solar_noon(fullSunDF)
-plot_solar_noon(fullShadeDF)
-plot_solar_noon(partialShadeDF)
-
 avgFullShadeNoonDF <- extract_avg_solar_noons(fullShadeDF)
 avgFullSunNoonDF <- extract_avg_solar_noons(fullSunDF)
 avgPartialShadeNoonDF <- extract_avg_solar_noons(partialShadeDF)
@@ -110,11 +96,12 @@ ggplot(
   data = allNoonsDF,
   mapping = aes(x=Time, y=Flat, color=Category)
 ) + 
-  geom_point(size=3) +
-  geom_line(linewidth = 1) +
+  geom_point(size=5) +
+  geom_line(linewidth=2) +
   labs(
     color="Location Type", 
     x="Date", 
     y=expression("Solar Irradiance (W/m"^2*")"),
     title= "Measured Solar Irradiance By Location Type"
-    )
+    ) +
+  theme_minimal(base_size=25)
