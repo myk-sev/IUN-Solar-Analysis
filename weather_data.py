@@ -60,6 +60,9 @@ if __name__ == "__main__":
         lambda entry: datetime.fromtimestamp(entry))
     visualCrossingDF.rename(columns={"datetimeEpoch": "Date Time"}, inplace=True)
 
+    solarDailyDF["cloudcover"] = visualCrossingDF["cloudcover"][
+        visualCrossingDF["Date Time"].isin(solarDailyDF["Date Time"])]
+
 
 
 
