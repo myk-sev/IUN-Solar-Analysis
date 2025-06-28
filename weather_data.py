@@ -49,7 +49,16 @@ if __name__ == "__main__":
 
     solarDailyDF["Date Time"] = pd.to_datetime(solarDailyDF["Date"] + "T" + solarDailyDF["Time"], format="%Y-%m-%dT%H:%M")
 
-    
+    daysToRetrieve = solarDailyDF["Date Time"].dt.strftime("%Y-%m-%d").unique()
+    relevantData = []
+    for day in daysToRetrieve:
+        response = requests.get(url=f"{CORE_ADDRESS}/{zipcode}/{day}", params=params)
+        relevantData += response.json()["days"][0]["hours"]
+
+    visualCrossingDF = pd.DataFrame(relevantData)
+    visualCrossingDF["datetimeEpoch"] = visualCrossingDF["datetimeEpoch"].apply(
+        lambda entry: datetime.fromtimestamp(entry))
+    visualCrossingDF.rename(columns={"datetimeEpoch": "Date Time"}, inplace=True)
 
 
 
