@@ -6,7 +6,6 @@ import os
 import time
 
 DAILY_DATA_FILENAME = "daily_data.csv"
-CORE_ADDRESS = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
 
 def to_nearest_interval(dtobj):
     """
@@ -25,15 +24,33 @@ def to_nearest_interval(dtobj):
         return dtobj.replace(hour=dtobj.hour+1, minute=0)
 
 
-if __name__ == "__main__":
-    dotenv.load_dotenv()
+def retrieve_daily_data(day, zipcode, apikey, dataTypes="cloudcover"):
+    """
+    Interface with visualcrossing API to retrieve data for a single day.
+
+    Output Columns: unix_time, dataTypes, ...
+
+    """
+    baseAddress = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+    fullAddress = f"{baseAddress}/{zipcode}/{day}"
 
     params = {
-        "key": os.environ.get("API_KEY"),
-        "contentType": os.environ.get("OUTPUT_TYPE"),
-        "elements": os.environ.get("DATA"),
+        "key": apikey,
+        "contentType": "json",  #csv can also be used
+        "elements": dataTypes
     }
-    zipcode = os.environ.get("ZIPCODE")
+
+    response = requests.get(url=fullAddress, params=params)
+    if response.status_code != 200:
+        print("Error retrieving data from Visual Crossing server")
+        raise
+
+    df = pd.DataFrame(response.json()["days"][0]["hours"])
+    return df
+
+
+if __name__ == "__main__":
+    dotenv.load_dotenv()
 
     solarDailyDF = pd.read_csv(DAILY_DATA_FILENAME)
 
@@ -44,13 +61,19 @@ if __name__ == "__main__":
     solarDailyDF["Date Time"] = solarDailyDF["Date Time"].apply(lambda entry: to_nearest_interval(entry))
     daysToRetrieve = solarDailyDF["Date Time"].dt.strftime("%Y-%m-%d").unique() #convert dtobj to visualcrossing format and find unique enteries
 
-    relevantData = []
+    visualCrossingDF = pd.DataFrame()
+    print("Retrieving Data")
     for day in daysToRetrieve:
-        print(day)
-        response = requests.get(url=f"{CORE_ADDRESS}/{zipcode}/{day}", params=params)
-        relevantData += response.json()["days"][0]["hours"]
+        print('\t', day)
+        response = retrieve_daily_data(
+            day,
+            os.environ.get("ZIPCODE"),
+            os.environ.get("API_KEY"),
+            os.environ.get("DATA")
+        )
+        visualCrossingDF = pd.concat([visualCrossingDF, response])
+    print("Data Retrieval Complete")
 
-    visualCrossingDF = pd.DataFrame(relevantData)
     visualCrossingDF["datetimeEpoch"] = visualCrossingDF["datetimeEpoch"].apply(
         lambda entry: datetime.datetime.fromtimestamp(entry))  #convert from unix to datetime obj
     visualCrossingDF.rename(columns={"datetimeEpoch": "Date Time"}, inplace=True) #rename the column to match the new format
