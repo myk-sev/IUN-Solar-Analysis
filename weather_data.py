@@ -79,26 +79,28 @@ if __name__ == "__main__":
         visualCrossingDF["Date Time"] = visualCrossingDF["Date Time"].apply(lambda entry: pd.to_datetime(entry)) # Datetime objects are converted to strings when saved to csv. They must be reconverted back to dtobj.
     else:
         visualCrossingDF = pd.DataFrame()
+    print("Data Sets Loaded")
 
     ### Preprocess Data ###
     #The general workflow for working with time data is to keep time in the datatime obj format, converting to and from the various types as needed.
     #This includes Unix type and string formats.
     solarDailyDF["Date Time"] = pd.to_datetime(solarDailyDF["Date"] + "T" + solarDailyDF["Time"], format="%Y-%m-%dT%H:%M") #convert text entries to datetime obj
     solarDailyDF["Date Time"] = solarDailyDF["Date Time"].apply(lambda entry: to_nearest_interval(entry))
+    print("Preprocessing Complete")
 
     ### Retrieve New Data ###
     daysToRetrieve = determine_data_needs(solarDailyDF, visualCrossingDF)
 
     if len(daysToRetrieve) != 0:
         newVCData = pd.DataFrame()
-        print("Retrieving Data")
+        print("Retrieving Data...")
         for day in daysToRetrieve:
             print('\t', day)
             response = retrieve_daily_data(
                 day, #format YYYY-MM-DD
                 os.environ.get("ZIPCODE"),
                 os.environ.get("API_KEY"),
-                os.environ.get("DATA")
+                os.environ.get("DATA") + ',datetimeEpoch'
             )
             newVCData = pd.concat([newVCData, response], ignore_index=True)
         print("Data Retrieval Complete")
@@ -108,12 +110,17 @@ if __name__ == "__main__":
         newVCData.rename(columns={"datetimeEpoch": "Date Time"}, inplace=True) #rename the column to match the new format
 
         visualCrossingDF = pd.concat([visualCrossingDF, newVCData], ignore_index=True)
+    else:
+        print("No New Data To Retrieve")
 
     ### Combine Data ###
-    solarDailyDF["cloudcover"] = visualCrossingDF["cloudcover"][
-        visualCrossingDF["Date Time"].isin(solarDailyDF["Date Time"])].values
+    for dataType in os.environ.get("DATA").split(','):
+        solarDailyDF[dataType] = visualCrossingDF[dataType][
+            visualCrossingDF["Date Time"].isin(solarDailyDF["Date Time"])].values #pulls data values where time objects match across dataframes
+    print('Data Processing Complete')
 
 
     ### Save Data ###
     visualCrossingDF.to_csv(VISUAL_CROSSING_ARCHIVE)
     solarDailyDF.to_csv(COMBO_FILE)
+    print("Results Saved")
