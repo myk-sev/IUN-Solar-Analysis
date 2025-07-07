@@ -3,9 +3,10 @@ import pandas as pd
 import datetime
 import dotenv
 import os
-import time
 
 DAILY_DATA_FILENAME = "daily_data.csv"
+VISUAL_CROSSING_ARCHIVE = "api_archive.csv"
+COMBO_FILE = "combined_data.csv"
 
 def to_nearest_interval(dtobj):
     """
@@ -48,35 +49,71 @@ def retrieve_daily_data(day, zipcode, apikey, dataTypes="cloudcover"):
     df = pd.DataFrame(response.json()["days"][0]["hours"])
     return df
 
+def determine_data_needs(dailyUserData, currentVCData=pd.DataFrame()):
+    """
+    Compare entries in user data to Visual Crossings archive. Returns a list of days to pull further data for.
+
+    :param dailyUserData:
+    :param currentVCData:
+
+    :return: days(set of strings) format: {"YYYY-MM-DD", ...}
+    """
+    if "Date Time" in currentVCData:
+        userDays = set(dailyUserData["Date Time"].dt.strftime("%Y-%m-%d")) #converts datetime objs to YYY-MM-DD string removing duplicate entries
+        archivedDays = set(currentVCData["Date Time"].dt.strftime("%Y-%m-%d"))
+
+        newDays = userDays - archivedDays
+        return newDays
+
+    else:
+        return dailyUserData["Date Time"].dt.strftime("%Y-%m-%d").unique()
 
 if __name__ == "__main__":
     dotenv.load_dotenv()
 
+    ### Load Data ###
     solarDailyDF = pd.read_csv(DAILY_DATA_FILENAME)
 
+    if os.path.exists(VISUAL_CROSSING_ARCHIVE):
+        visualCrossingDF = pd.read_csv(VISUAL_CROSSING_ARCHIVE)
+        visualCrossingDF["Date Time"] = visualCrossingDF["Date Time"].apply(lambda entry: pd.to_datetime(entry)) # Datetime objects are converted to strings when saved to csv. They must be reconverted back to dtobj.
+    else:
+        visualCrossingDF = pd.DataFrame()
+
+    ### Preprocess Data ###
     #The general workflow for working with time data is to keep time in the datatime obj format, converting to and from the various types as needed.
     #This includes Unix type and string formats.
-    solarDailyDF["Date Time"] = pd.to_datetime(solarDailyDF["Date"] + "T" + solarDailyDF["Time"], format="%Y-%m-%dT%H:%M") #convert text enteries to datetime obj
-
+    solarDailyDF["Date Time"] = pd.to_datetime(solarDailyDF["Date"] + "T" + solarDailyDF["Time"], format="%Y-%m-%dT%H:%M") #convert text entries to datetime obj
     solarDailyDF["Date Time"] = solarDailyDF["Date Time"].apply(lambda entry: to_nearest_interval(entry))
-    daysToRetrieve = solarDailyDF["Date Time"].dt.strftime("%Y-%m-%d").unique() #convert dtobj to visualcrossing format and find unique enteries
 
-    visualCrossingDF = pd.DataFrame()
-    print("Retrieving Data")
-    for day in daysToRetrieve:
-        print('\t', day)
-        response = retrieve_daily_data(
-            day,
-            os.environ.get("ZIPCODE"),
-            os.environ.get("API_KEY"),
-            os.environ.get("DATA")
-        )
-        visualCrossingDF = pd.concat([visualCrossingDF, response])
-    print("Data Retrieval Complete")
+    ### Retrieve New Data ###
+    daysToRetrieve = determine_data_needs(solarDailyDF, visualCrossingDF)
 
-    visualCrossingDF["datetimeEpoch"] = visualCrossingDF["datetimeEpoch"].apply(
-        lambda entry: datetime.datetime.fromtimestamp(entry))  #convert from unix to datetime obj
-    visualCrossingDF.rename(columns={"datetimeEpoch": "Date Time"}, inplace=True) #rename the column to match the new format
+    if len(daysToRetrieve) != 0:
+        newVCData = pd.DataFrame()
+        print("Retrieving Data")
+        for day in daysToRetrieve:
+            print('\t', day)
+            response = retrieve_daily_data(
+                day, #format YYYY-MM-DD
+                os.environ.get("ZIPCODE"),
+                os.environ.get("API_KEY"),
+                os.environ.get("DATA")
+            )
+            newVCData = pd.concat([newVCData, response], ignore_index=True)
+        print("Data Retrieval Complete")
 
+        newVCData["datetimeEpoch"] = newVCData["datetimeEpoch"].apply(
+            lambda entry: datetime.datetime.fromtimestamp(entry))  #convert from unix to datetime obj
+        newVCData.rename(columns={"datetimeEpoch": "Date Time"}, inplace=True) #rename the column to match the new format
+
+        visualCrossingDF = pd.concat([visualCrossingDF, newVCData], ignore_index=True)
+
+    ### Combine Data ###
     solarDailyDF["cloudcover"] = visualCrossingDF["cloudcover"][
         visualCrossingDF["Date Time"].isin(solarDailyDF["Date Time"])].values
+
+
+    ### Save Data ###
+    visualCrossingDF.to_csv(VISUAL_CROSSING_ARCHIVE)
+    solarDailyDF.to_csv(COMBO_FILE)
