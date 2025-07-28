@@ -46,10 +46,6 @@ locationsDF <- read_csv("location_details.csv", col_types = cols(
   Location = col_character(),
   Latitude = col_double(),
   Longitude = col_double(),
-  Tangential = col_character(),
-  Lighting = col_character(),
-  Foliage_Shadow = col_character(),
-  Building_Shadow = col_character(),
   Category = col_character()
 ))
 
@@ -64,6 +60,7 @@ hourlyDF <- read_csv("hourly_data.csv", col_types=cols(
 hourlyDF <- add_closet_hour(hourlyDF)
 expandedHourlyDF <- merge(hourlyDF, locationsDF, by=c("Location"))
 
+# extract out environmental factors, average, then recombine
 fullShadeDF <- subset(expandedHourlyDF, expandedHourlyDF$Category == "Full Shade")
 fullSunDF <- subset(expandedHourlyDF, expandedHourlyDF$Category == "Full Sun")
 partialShadeDF <- subset(expandedHourlyDF, expandedHourlyDF$Category == "Partial Shade")
@@ -80,30 +77,36 @@ partialShadeAvgsDF$Category = "Partial Shade"
 
 avgByCategoryDF <- rbind(fullShadeAvgsDF, fullSunAvgsDF, partialShadeAvgsDF)
 
+### 42 Degree Map ###
 ggplot(
   data = avgByCategoryDF,
   mapping = aes(x=Time, y=Angled, color=Category)
 ) +
   geom_point() +
-  geom_smooth(se=FALSE) +
+  geom_smooth(se=FALSE, linewidth=1.5) +
   labs(
     color="Location Type", 
     y=expression("Solar Irradiance (W/m"^2*")"),
     title= "Average Daily Solar Irradiance (42°)"
-  )
+  ) +
+  theme_minimal(base_size=20)
 
+### Flat Graph ###
 ggplot(
   data = avgByCategoryDF,
   mapping = aes(x=Time, y=Flat, color=Category)
 ) +
   geom_point() +
-  geom_smooth(se=FALSE) +
+  geom_smooth(se=FALSE, linewidth=1.5) +
   labs(
     color="Location Type", 
     y=expression("Solar Irradiance (W/m"^2*")"),
     title= "Average Daily Solar Irradiance (0°)"
-  )
+  ) +
+  theme_minimal(base_size=20)
 
+
+### Combo Map ###
 allAveragesFlatDF <- data.frame(
   Time=allAveragesDF$Time,
   Value=allAveragesDF$Flat,
@@ -128,4 +131,5 @@ ggplot(
     color="Angle", 
     y=expression("Solar Irradiance (W/m"^2*")"),
     title= "Average Daily Solar Irradiance (All)"
-  )
+  ) +
+  theme_minimal(base_size=25)

@@ -15,13 +15,13 @@ closest_hour <- function(time) {
 }
 
 add_closet_hour <- function(dataDF) {
-  #Adds a column to the input spcificy the closest two hour marker.
+  #Adds a column to the input specifing the closest two hour marker.
   hourCol <- c(as_datetime(0)) #ensures data consistency in vector. otherwise all data will be converted to numeric
   for (timeEntry in dataDF$Time) {
     hourCol <- c(hourCol, closest_hour(timeEntry))
   }
   hourCol <- hourCol[2:length(hourCol)]
-  hourCol <- dhours(hour(hourCol)) #convert to durations
+  hourCol <- dhours(hour(hourCol)) #convert to duration
   
   dataDF$Hour <- dataDF$Date + hourCol
   
@@ -42,27 +42,10 @@ extract_interval_averages_expanded <- function(dataDF) {
       newRow <- data.frame(Time=hms::as_hms(h*60*60), Flat=flatAvg, Angled=angledAvg, Weather=w)
       avgDF <- rbind(avgDF, newRow)
     }
-    ##### Optional Extraction of Rain Data #####
-    # rainEnteries <- subset(hourEnteries, hourEnteries$Raining == "Yes")
-    # flatAvg <- mean(rainEnteries$Flat, na.rm=TRUE)
-    # angledAvg <- mean(rainEnteries$Angled, na.rm=TRUE)
-    # newRow <- data.frame(Time=hms::as_hms(h*60*60), Flat=flatAvg, Angled=angledAvg, Weather="Rain")
-    # avgDF <- rbind(avgDF, newRow)
   }
   avgDF <- avgDF[-c(1),] #the first row is blank. this removes it
   return(avgDF)
 }
-
-locationsDF <- read_csv("location_details.csv", col_types = cols(
-  Location = col_character(),
-  Latitude = col_double(),
-  Longitude = col_double(),
-  Tangential = col_character(),
-  Lighting = col_character(),
-  Foliage_Shadow = col_character(),
-  Building_Shadow = col_character(),
-  Category = col_character()
-))
 
 hourlyDF <- read_csv("hourly_data.csv", col_types=cols(
   Date = col_datetime(),
@@ -79,8 +62,6 @@ dailyDF <- read_csv("daily_data.csv",col_types=cols(
   Solar_Altitude = col_double(),
   Cloud_Coverage = col_double(),
   Weather = col_character(),
-  Raining = col_character(),
-  Sunlight_Variability = col_character()
 ))
 
 hourlyDF <- add_closet_hour(hourlyDF)

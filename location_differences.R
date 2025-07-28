@@ -50,10 +50,6 @@ locationsDF <- read_csv("location_details.csv", col_types = cols(
   Location = col_character(),
   Latitude = col_double(),
   Longitude = col_double(),
-  Tangential = col_character(),
-  Lighting = col_character(),
-  Foliage_Shadow = col_character(),
-  Building_Shadow = col_character(),
   Category = col_character()
 ))
 
