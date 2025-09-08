@@ -1,8 +1,10 @@
+from importlib.metadata import metadata
+
 import pandas as pd
 from pathlib import Path
 from PIL import Image
 from lxml import etree
-from os import getcwd
+import os
 
 def extract_metadata(folder_path:Path) -> pd.DataFrame:
     all_metadata = []
@@ -36,6 +38,12 @@ def extract_metadata(folder_path:Path) -> pd.DataFrame:
     return pd.DataFrame(all_metadata)
 
 if __name__ == "__main__":
-    folder_path = Path(getcwd()) / "Screenshots"
-    output_csv = Path(getcwd()) / "metadata.csv"
-    metadata_df = extract_metadata(folder_path)
+    main_dir = Path(os.getcwd()) / "Screenshots"
+    sub_dirs = [main_dir / folder for folder in os.listdir(main_dir) if os.path.isdir(main_dir / folder)] #check that each result is indeed a directory
+    output_csv = Path(os.getcwd()) / "metadata.csv"
+
+    metadata = [extract_metadata(folder) for folder in sub_dirs]
+    metadata_df = pd.concat(metadata, ignore_index=True)
+
+    metadata_df.to_csv("metadata.csv")
+
