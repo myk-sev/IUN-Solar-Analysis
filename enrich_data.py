@@ -50,9 +50,9 @@ class VisualCrossingClient:
             A new datetime object with the nearest 2 hour mark.
         """
         if dtobj.hour % 2 == 0:  # round down if even
-            return dtobj.replace(minute=0)
+            return dtobj.replace(minute=0, second=0)
         else:  # round up if odd
-            return dtobj.replace(hour=dtobj.hour+1, minute=0)
+            return dtobj.replace(hour=dtobj.hour+1, minute=0, second=0)
 
     def retrieve_daily_data(self, day: str) -> pd.DataFrame:
         """Interface with Visual Crossing API to retrieve data for a single day.
@@ -235,6 +235,7 @@ class VisualCrossingClient:
 
 
 if __name__ == "__main__":
+    ### Settings ###
     load_dotenv()
 
     api_key = os.environ.get("API_KEY")
@@ -243,13 +244,28 @@ if __name__ == "__main__":
     data_folder = Path(os.getcwd()) / "Data"
     archive_path = data_folder / "api_archive.csv"
 
-    # retrieve screenshot data
+    ### Retrieve Screenshot Data ###
     months = os.listdir("Screenshots")
     solar_data = pd.concat([pd.read_csv(data_folder / f"{month}.csv") for month in months], ignore_index=True)
     solar_data = solar_data.rename(columns={"File": "filename"})
+
+    ### Retrieve Meta Data ###
+    metadata = pd.read_csv(data_folder / "metadata.csv")
+    metadata = metadata[["filename", "photoshop:DateCreated"]]
+    metadata = metadata.rename(columns={"photoshop:DateCreated": "timestamp"})
+    metadata["timestamp"] = pd.to_datetime(metadata["timestamp"])
+
+    merged_df = pd.merge(solar_data, metadata, on="filename")
+
+
     
     client = VisualCrossingClient(api_key, zipcode, data_types, archive_path)
     day = "2025-09-15"
     df = client.retrieve_daily_data(day)
+
+    nearest = pd.DataFrame({"nearest_interval": merged_df["timestamp"].apply(VisualCrossingClient.nearest_interval)})
+    #nearest = pd.concat([merged_df["timestamp"], nearest], axis = 1)
     print("Enriched data shape:", df.shape)
     print("Columns:", df.columns.tolist())
+
+

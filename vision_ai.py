@@ -29,7 +29,7 @@ def process_screenshots(archive_path):
         r_obj = eval(detections[0][detections[0].index("\t") + 1:])  # OpenOCR's result is a list of results encoded as a list with a label
 
         results = {
-            "File": img_path.name,
+            "filename": img_path.name,
             "SolarIrradiance":0,
             "Longitude":0,
             "Latitude":0
@@ -93,7 +93,7 @@ def process_screenshots(archive_path):
 
 
 if __name__ == "__main__":
-    month = "March"
+    month = "February"
     archive_path = Path(getcwd()) / "Screenshots" / month
     df, failures = process_screenshots(archive_path)
     print(df.head())
@@ -101,6 +101,5 @@ if __name__ == "__main__":
 
     first_img = df.iloc[0]['File'][:-4]
     last_img = df.iloc[-1]['File'][:-4]
-    #output_file_name = f"{first_img} to {last_img}.csv"
     output_file_name = f"{month}.csv"
-    df.to_csv(output_file_name)
+    df.to_csv("Data/" + output_file_name)
