@@ -2,7 +2,7 @@ import os, requests
 import pandas as pd
 import datetime
 from dotenv import load_dotenv
-from typing import Set, Optional
+from typing import Set
 from pathlib import Path
 
 
@@ -14,7 +14,7 @@ class VisualCrossingClient:
     """
     BASE_ADDRESS = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
     
-    def __init__(self, api_key: str, zipcode: str, data_types: list[str], archive_location: Optional[Path]=None):
+    def __init__(self, api_key: str, zipcode: str, data_types: list[str], archive_location: Path | None =None):
         """Initialize the client. Load archived data.
 
         : api_key str: Visual Crossing API key
@@ -30,6 +30,8 @@ class VisualCrossingClient:
         if archive_location: 
             self.archive_path = archive_location
             self.archive = pd.read_csv(archive_location)
+            self.archive["timestamp"] = pd.to_datetime(self.archive["timestamp"])
+
         else: 
             empty_df = {col_name:[] for col_name in data_types}
             empty_df["timestamp"] = []
@@ -39,20 +41,16 @@ class VisualCrossingClient:
             self.archive.to_csv(self.archive_location)
     
     @staticmethod
-    def nearest_interval(dtobj: datetime.datetime) -> datetime.datetime:
-        """
-        Find the nearest two hour interval.
+    def nearest_interval(dt_obj: datetime.datetime) -> datetime.datetime:
+        """Find the nearest two hour interval.
 
-        Args:
-            dtobj: The original datetime object.
-
-        Returns:
-            A new datetime object with the nearest 2 hour mark.
+        : dt_obj datetime.datetime: the original datetime object
+        : return datetime.datetime: a new datetime object at nearest 2 hour mark
         """
-        if dtobj.hour % 2 == 0:  # round down if even
-            return dtobj.replace(minute=0, second=0)
+        if dt_obj.hour % 2 == 0:  # round down if even
+            return dt_obj.replace(minute=0, second=0)
         else:  # round up if odd
-            return dtobj.replace(hour=dtobj.hour+1, minute=0, second=0)
+            return dt_obj.replace(hour=dt_obj.hour+1, minute=0, second=0)
 
     def retrieve_daily_data(self, day: str) -> pd.DataFrame:
         """Interface with Visual Crossing API to retrieve data for a single day.
@@ -83,27 +81,16 @@ class VisualCrossingClient:
             print(f"Error retrieving data from Visual Crossing server for {day}: {e}")
             raise
 
-    def determine_data_needs(self, daily_user_data: pd.DataFrame) -> Set[str]:
-        """
-        Compare entries in user data to Visual Crossing archive. 
-        Returns a list of days to pull further data for.
+    def determine_data_needs(self, user_timestamps: pd.Series):
+        """Determine days lacking an entry in cached data from Visual Crossing.
 
-        Args:
-            daily_user_data: DataFrame with solar data
-            current_vc_data: Existing Visual Crossing data (optional)
-
-        Returns:
-            Set of days in YYYY-MM-DD format that need new data
+        : user_timestamps pandas.Series: timestamps present in latest collection of data
+        : return numpy.ndarray: the days lacking data in visual crossing cache
         """
-        archived_days = set(self.archive["timestamp"].dt.strftime("%Y-%m-%d"))
-            
-        if "Date Time" in current_vc_data.columns and not current_vc_data.empty:
-            user_days = set(daily_user_data["Date Time"].dt.strftime("%Y-%m-%d"))
-            archived_days = set(current_vc_data["Date Time"].dt.strftime("%Y-%m-%d"))
-            new_days = user_days - archived_days
-            return new_days
-        else:
-            return set(daily_user_data["Date Time"].dt.strftime("%Y-%m-%d").unique())
+        nearest_timestamps = user_timestamps.apply(self.nearest_interval)
+        new_intervals = nearest_timestamps[~nearest_timestamps.isin(self.archive["timestamp"])]
+        new_days = nearest_timestamps.dt.strftime("%Y-%m-%d").unique()
+        return new_days
 
 
     def preprocess_solar_data(self, solar_daily_df: pd.DataFrame) -> pd.DataFrame:
