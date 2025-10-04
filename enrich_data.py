@@ -115,29 +115,23 @@ class VisualCrossingClient:
         :param data_types: weather elements to be retrieved from Visual Crossing. more options available at https://www.visualcrossing.com/resources/documentation/weather-api/timeline-weather-api/
         :return: user data with added data points from api service
         """
-        # Use existing weather data or create empty DataFrame
+        #Add cached data to current data set
         old_data_enriched = self.utilize_existing_cache(user_data)
 
+        #Retrieve new Visual Crossing data
         new_days = self.determine_data_needs(user_data[time_col])
         new_data =  pd.concat([self.retrieve_daily_data(day) for day in new_days], ignore_index=True)
-        
-        # Preprocess solar data
-        solar_daily_df = self.preprocess_solar_data(solar_data.copy())
-        
-        # Determine what new data is needed
-        days_to_retrieve = self.determine_data_needs(solar_daily_df, visual_crossing_df)
-        
-        # Retrieve new weather data
-        new_vc_data = self.retrieve_new_weather_data(days_to_retrieve)
-        
-        # Update weather archive
-        if not new_vc_data.empty:
-            visual_crossing_df = pd.concat([visual_crossing_df, new_vc_data], ignore_index=True)
-        
-        # Combine data
-        enriched_df = self.combine_data(solar_daily_df, visual_crossing_df)
-        
-        return enriched_df
+        self.update_archive(new_data)
+
+        #Match new manual data to Visual Crossing Data
+        user_data["interval"] = user_data[time_col].apply(self.nearest_interval)
+        new_data_enriched = pd.merge(user_data, new_data, left_on="interval", right_on=time_col)
+        new_data_enriched = new_data_enriched.rename(columns={f"{time_col}_x":time_col})
+        new_data_enriched = new_data_enriched.drop(columns=["interval", f"{time_col}_y"])
+
+        #Combine new and old
+        enriched_data = pd.concat([old_data_enriched, new_data_enriched], ignore_index=True)
+        return enriched_data
 
     def update_archive(self, new_data: pd.DataFrame) -> None:
         """Adds new data to the archive (reduces costs).
@@ -174,5 +168,6 @@ if __name__ == "__main__":
 
     client = VisualCrossingClient(api_key, zipcode, data_types, archive_path)
 
-    nearest = pd.DataFrame({"nearest_interval": merged_df["timestamp"].apply(VisualCrossingClient.nearest_interval)})
-    #nearest = pd.concat([merged_df["timestamp"], nearest], axis = 1)
+    ### Enrich Manual Data W/ VC Data
+    enriched_df = client.enrich(merged_df)
+    enriched_df.to_csv("full_dataset.csv")
