@@ -42,8 +42,7 @@ if __name__ == "__main__":
     sub_dirs = [main_dir / folder for folder in os.listdir(main_dir) if os.path.isdir(main_dir / folder)] #check that each result is indeed a directory
     output_csv = Path(os.getcwd()) / "metadata.csv"
 
-    metadata = [extract_metadata(folder) for folder in sub_dirs]
-    metadata_df = pd.concat(metadata, ignore_index=True)
+    monthly_metadata = [extract_metadata(folder) for folder in sub_dirs]
+    metadata_df = pd.concat(monthly_metadata, ignore_index=True)
 
     metadata_df.to_csv("metadata.csv")
-
