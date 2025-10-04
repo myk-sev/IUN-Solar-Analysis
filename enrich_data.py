@@ -1,9 +1,11 @@
-import os, requests
+import datetime, os, requests
+
 import pandas as pd
-import datetime
+import numpy as np
+
 from dotenv import load_dotenv
-from typing import Set
 from pathlib import Path
+
 
 
 class VisualCrossingClient:
@@ -81,118 +83,45 @@ class VisualCrossingClient:
             print(f"Error retrieving data from Visual Crossing server for {day}: {e}")
             raise
 
-    def determine_data_needs(self, user_timestamps: pd.Series):
+    def determine_data_needs(self, user_timestamps: pd.Series) -> np.ndarray[str]:
         """Determine days lacking an entry in cached data from Visual Crossing.
 
-        : user_timestamps pandas.Series: timestamps present in latest collection of data
-        : return numpy.ndarray: the days lacking data in visual crossing cache
+        :param user_timestamps: timestamps present in latest collection of data
+        :return numpy.ndarray: the days lacking data in visual crossing cache
         """
         nearest_timestamps = user_timestamps.apply(self.nearest_interval)
         new_intervals = nearest_timestamps[~nearest_timestamps.isin(self.archive["timestamp"])]
         new_days = nearest_timestamps.dt.strftime("%Y-%m-%d").unique()
         return new_days
 
+    def utilize_existing_cache(self, user_data: pd.DataFrame, time_col: str = "timestamp") -> pd.DataFrame:
+        """Access and pair archived data.
 
-    def preprocess_solar_data(self, solar_daily_df: pd.DataFrame) -> pd.DataFrame:
+        :param user_data: manual retrieved data
+        :param time_col: column name for time data
+        :return: dataframe enriched with cached visual crossing data & missing datatypes
         """
-        Preprocess solar data by converting date/time columns and aligning to intervals.
-        
-        Args:
-            solar_daily_df: Raw solar data DataFrame
-            
-        Returns:
-            Preprocessed solar data DataFrame
-        """
-        # Convert text entries to datetime objects
-        solar_daily_df["Date Time"] = pd.to_datetime(
-            solar_daily_df["Date"] + "T" + solar_daily_df["Time"], 
-            format="%Y-%m-%dT%H:%M"
-        )
-        
-        # Align to nearest two-hour interval
-        solar_daily_df["Date Time"] = solar_daily_df["Date Time"].apply(
-            lambda entry: self.to_nearest_interval(entry)
-        )
-        
-        print("Preprocessing Complete")
-        return solar_daily_df
+        user_data["interval"] = user_data[time_col].apply(self.nearest_interval)
+        enriched = pd.merge(user_data, self.archive, left_on="interval", right_on=time_col)
 
-    def retrieve_new_weather_data(self, days_to_retrieve: Set[str]) -> pd.DataFrame:
-        """
-        Retrieve new weather data for specified days.
-        
-        Args:
-            days_to_retrieve: Set of days in YYYY-MM-DD format
-            
-        Returns:
-            DataFrame with new weather data
-        """
-        if not days_to_retrieve:
-            print("No New Data To Retrieve")
-            return pd.DataFrame()
-            
-        new_vc_data = pd.DataFrame()
-        print("Retrieving Data...")
-        
-        for day in days_to_retrieve:
-            print(f'\t{day}')
-            try:
-                response = self.retrieve_daily_data(
-                    day, 
-                    self.data_types + ',datetimeEpoch'
-                )
-                new_vc_data = pd.concat([new_vc_data, response], ignore_index=True)
-            except Exception as e:
-                print(f"Failed to retrieve data for {day}: {e}")
-                continue
-                
-        if not new_vc_data.empty:
-            # Convert from unix timestamp to datetime
-            new_vc_data["datetimeEpoch"] = new_vc_data["datetimeEpoch"].apply(
-                lambda entry: datetime.datetime.fromtimestamp(entry)
-            )
-            # Rename column to match expected format
-            new_vc_data.rename(columns={"datetimeEpoch": "Date Time"}, inplace=True)
-            print("Data Retrieval Complete")
-        
-        return new_vc_data
+        enriched = enriched.rename(columns={f"{time_col}_x":time_col})
+        enriched = enriched.drop(columns=["interval", f"{time_col}_y"])
 
-    def combine_data(self, solar_daily_df: pd.DataFrame, 
-                    visual_crossing_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Combine solar data with weather data.
-        
-        Args:
-            solar_daily_df: Solar data DataFrame
-            visual_crossing_df: Weather data DataFrame
-            
-        Returns:
-            Combined DataFrame
-        """
-        for data_type in self.data_types.split(','):
-            if data_type in visual_crossing_df.columns:
-                solar_daily_df[data_type] = visual_crossing_df[data_type][
-                    visual_crossing_df["Date Time"].isin(solar_daily_df["Date Time"])
-                ].values
-                
-        print('Data Processing Complete')
-        return solar_daily_df
+        return enriched
 
-
-    def run_enrichment(self, solar_data: pd.DataFrame, 
-                       existing_weather_data: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-        """
-        Run the complete data enrichment process.
+    def enrich(self, user_data: pd.DataFrame, time_col: str = "timestamp") -> pd.DataFrame:
+        """Pair manual data with data retrieved from Visual Crossing.
         
-        Args:
-            solar_data: DataFrame containing solar data with 'Date' and 'Time' columns
-            existing_weather_data: Optional DataFrame with existing weather data
-        
-        Returns:
-            Enriched DataFrame with solar data combined with weather data
+        :param user_data: most recent data collection
+        :param time_col: column name for time data
+        :param data_types: weather elements to be retrieved from Visual Crossing. more options available at https://www.visualcrossing.com/resources/documentation/weather-api/timeline-weather-api/
+        :param return: user data with added data points from api service
         """
         # Use existing weather data or create empty DataFrame
-        visual_crossing_df = existing_weather_data.copy() if existing_weather_data is not None else pd.DataFrame()
+        old_data_enriched = self.utilize_existing_cache(user_data)
+
+        new_days = self.determine_data_needs(user_data[time_col])
+        new_data =  pd.concat([self.retrieve_daily_data(day) for day in new_days], ignore_index=True)
         
         # Preprocess solar data
         solar_daily_df = self.preprocess_solar_data(solar_data.copy())
@@ -234,7 +163,8 @@ if __name__ == "__main__":
     ### Retrieve Screenshot Data ###
     months = os.listdir("Screenshots")
     solar_data = pd.concat([pd.read_csv(data_folder / f"{month}.csv") for month in months], ignore_index=True)
-    solar_data = solar_data.rename(columns={"File": "filename"})
+    solar_data = solar_data.rename(columns={"File": "filename"}).drop(columns="Unnamed: 0")
+
 
     ### Retrieve Meta Data ###
     metadata = pd.read_csv(data_folder / "metadata.csv")
@@ -244,11 +174,7 @@ if __name__ == "__main__":
 
     merged_df = pd.merge(solar_data, metadata, on="filename")
 
-
-    
     client = VisualCrossingClient(api_key, zipcode, data_types, archive_path)
-    day = "2025-09-15"
-    df = client.retrieve_daily_data(day)
 
     nearest = pd.DataFrame({"nearest_interval": merged_df["timestamp"].apply(VisualCrossingClient.nearest_interval)})
     #nearest = pd.concat([merged_df["timestamp"], nearest], axis = 1)
