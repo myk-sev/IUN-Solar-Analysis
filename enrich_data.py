@@ -19,11 +19,9 @@ class VisualCrossingClient:
     def __init__(self, api_key: str, zipcode: str, data_types: list[str], archive_location: Path | None =None):
         """Initialize the client. Load archived data.
 
-        : api_key str: Visual Crossing API key
-        : zipcode str: ZIP code of the location where whether data is needed
-        : data_types str: Comma-separated weather data types (if None, will try to load from .env)
-
-        : return VisualCrossingClient: client object
+        :param api_key: Visual Crossing API key
+        :param zipcode: ZIP code of the location where whether data is needed
+        :param data_types: Comma-separated weather data types (if None, will try to load from .env)
         """
         self.zipcode = zipcode
         self.api_key = api_key
@@ -46,8 +44,8 @@ class VisualCrossingClient:
     def nearest_interval(dt_obj: datetime.datetime) -> datetime.datetime:
         """Find the nearest two hour interval.
 
-        : dt_obj datetime.datetime: the original datetime object
-        : return datetime.datetime: a new datetime object at nearest 2 hour mark
+        :param dt_obj: the original datetime object
+         return: a new datetime object at nearest 2 hour mark
         """
         if dt_obj.hour % 2 == 0:  # round down if even
             return dt_obj.replace(minute=0, second=0)
@@ -57,9 +55,9 @@ class VisualCrossingClient:
     def retrieve_daily_data(self, day: str) -> pd.DataFrame:
         """Interface with Visual Crossing API to retrieve data for a single day.
 
-        : day str: YYYY-MM-DD format
-        : return pandas.DataFrame: weather data from VisualCrossing
-        : raises requests.RequestException: if API request fails
+        :param day: YYYY-MM-DD format
+        :return: weather data from VisualCrossing
+        :raises requests.RequestException: if API request fails
         """
         full_address = f"{self.BASE_ADDRESS}/{self.zipcode}/{day}"
 
@@ -87,11 +85,11 @@ class VisualCrossingClient:
         """Determine days lacking an entry in cached data from Visual Crossing.
 
         :param user_timestamps: timestamps present in latest collection of data
-        :return numpy.ndarray: the days lacking data in visual crossing cache
+        :return: the days lacking data in visual crossing cache
         """
         nearest_timestamps = user_timestamps.apply(self.nearest_interval)
         new_intervals = nearest_timestamps[~nearest_timestamps.isin(self.archive["timestamp"])]
-        new_days = nearest_timestamps.dt.strftime("%Y-%m-%d").unique()
+        new_days = new_intervals.dt.strftime("%Y-%m-%d").unique()
         return new_days
 
     def utilize_existing_cache(self, user_data: pd.DataFrame, time_col: str = "timestamp") -> pd.DataFrame:
@@ -115,7 +113,7 @@ class VisualCrossingClient:
         :param user_data: most recent data collection
         :param time_col: column name for time data
         :param data_types: weather elements to be retrieved from Visual Crossing. more options available at https://www.visualcrossing.com/resources/documentation/weather-api/timeline-weather-api/
-        :param return: user data with added data points from api service
+        :return: user data with added data points from api service
         """
         # Use existing weather data or create empty DataFrame
         old_data_enriched = self.utilize_existing_cache(user_data)
@@ -144,7 +142,7 @@ class VisualCrossingClient:
     def update_archive(self, new_data: pd.DataFrame) -> None:
         """Adds new data to the archive (reduces costs).
         
-        : new_data pandas.DataFrame: new data
+        :param new_data: new data
         """
         self.archive = pd.concat([self.archive, new_data], ignore_index=True)
         self.archive.to_csv(self.archive_path)
@@ -178,7 +176,3 @@ if __name__ == "__main__":
 
     nearest = pd.DataFrame({"nearest_interval": merged_df["timestamp"].apply(VisualCrossingClient.nearest_interval)})
     #nearest = pd.concat([merged_df["timestamp"], nearest], axis = 1)
-    print("Enriched data shape:", df.shape)
-    print("Columns:", df.columns.tolist())
-
-
