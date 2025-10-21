@@ -6,6 +6,10 @@ from PIL import Image
 from lxml import etree
 import os
 
+DATA_FOLDER = Path(os.getcwd()) / "data"
+SCREENSHOT_FOLDER = Path(os.getcwd()) / "screenshots"
+OUTPUT_FILE = DATA_FOLDER / "metadata.csv"
+
 def extract_metadata(folder_path:Path) -> pd.DataFrame:
     all_metadata = []
     for img_path in folder_path.glob("*.png"): #look through each file in the image directory
@@ -38,15 +42,13 @@ def extract_metadata(folder_path:Path) -> pd.DataFrame:
     return pd.DataFrame(all_metadata)
 
 if __name__ == "__main__":
-    main_dir = Path(os.getcwd()) / "Screenshots"
-    sub_dirs = [main_dir / folder for folder in os.listdir(main_dir) if os.path.isdir(main_dir / folder)] #check that each result is indeed a directory
-    output_csv = Path(os.getcwd()) / "metadata.csv"
-
-    monthly_metadata = [extract_metadata(folder) for folder in sub_dirs]
+    monthly_folders = [SCREENSHOT_FOLDER / folder for folder in os.listdir(SCREENSHOT_FOLDER) if os.path.isdir(SCREENSHOT_FOLDER / folder)] #check that each result is indeed a directory
+    
+    monthly_metadata = [extract_metadata(folder) for folder in monthly_folders]
     metadata_df = pd.concat(monthly_metadata, ignore_index=True)
 
     # Output clean up
     metadata_df = metadata_df.rename(columns={"photoshop:DateCreated": "timestamp"})
     metadata_df = metadata_df[["filename","timestamp"]]
 
-    metadata_df.to_csv("metadata.csv")
+    metadata_df.to_csv(OUTPUT_FILE)

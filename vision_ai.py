@@ -4,6 +4,8 @@ from os import getcwd
 import pandas as pd
 import onnxruntime as ort
 
+SCREENSHOT_FOLDER = Path(getcwd()) / "screenshots"
+
 def process_screenshots(archive_path):
     """"Utilize OpenOCR vision model to extract solar irradiance, longitude, and latitude from SPARKvue screenshots.
 
@@ -89,12 +91,9 @@ def process_screenshots(archive_path):
 
     return pd.DataFrame(data), failures
 
-
-
-
 if __name__ == "__main__":
     month = "July"
-    archive_path = Path(getcwd()) / "Screenshots" / month
+    archive_path =  SCREENSHOT_FOLDER / month
     df, failures = process_screenshots(archive_path)
     print("Failures:", failures)
 

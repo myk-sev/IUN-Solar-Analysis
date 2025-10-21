@@ -4,7 +4,9 @@ import numpy as np
 from dotenv import load_dotenv
 from pathlib import Path
 
-
+DATA_FOLDER = Path(os.getcwd()) / "data"
+ARCHIVE_FILE = DATA_FOLDER / "api_archive.csv"
+METADATA_FILE = DATA_FOLDER / "metadata.csv"
 
 class VisualCrossingClient:
     """
@@ -147,25 +149,21 @@ if __name__ == "__main__":
     api_key = os.environ.get("API_KEY")
     zipcode = os.environ.get("ZIPCODE")
     data_types = ["cloudcover" , "solarradiation"] #For additional types visit: https://www.visualcrossing.com/weather-query-builder/
-    data_folder = Path(os.getcwd()) / "Data"
-    archive_path = data_folder / "api_archive.csv"
 
     ### Retrieve Screenshot Data ###
     months = os.listdir("Screenshots")
-    solar_data = pd.concat([pd.read_csv(data_folder / f"{month}.csv") for month in months], ignore_index=True)
+    solar_data = pd.concat([pd.read_csv(DATA_FOLDER / f"{month}.csv") for month in months], ignore_index=True)
     solar_data = solar_data.rename(columns={"File": "filename"}).drop(columns="Unnamed: 0")
 
-
     ### Retrieve Meta Data ###
-    metadata = pd.read_csv(data_folder / "metadata.csv")
+    metadata = pd.read_csv(METADATA_FILE)
     metadata = metadata[["filename", "photoshop:DateCreated"]]
     metadata = metadata.rename(columns={"photoshop:DateCreated": "timestamp"})
     metadata["timestamp"] = pd.to_datetime(metadata["timestamp"])
 
-    merged_df = pd.merge(solar_data, metadata, on="filename")
-
-    client = VisualCrossingClient(api_key, zipcode, data_types, archive_path)
-
     ### Enrich Manual Data W/ VC Data
+    merged_df = pd.merge(solar_data, metadata, on="filename")
+    client = VisualCrossingClient(api_key, zipcode, data_types, ARCHIVE_FILE)
+    
     enriched_df = client.enrich(merged_df)
     enriched_df.to_csv("full_dataset.csv")
