@@ -45,4 +45,8 @@ if __name__ == "__main__":
     monthly_metadata = [extract_metadata(folder) for folder in sub_dirs]
     metadata_df = pd.concat(monthly_metadata, ignore_index=True)
 
+    # Output clean up
+    metadata_df = metadata_df.rename(columns={"photoshop:DateCreated": "timestamp"})
+    metadata_df = metadata_df[["filename","timestamp"]]
+
     metadata_df.to_csv("metadata.csv")

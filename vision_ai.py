@@ -30,9 +30,9 @@ def process_screenshots(archive_path):
 
         results = {
             "filename": img_path.name,
-            "SolarIrradiance":0,
-            "Longitude":0,
-            "Latitude":0
+            "measurement":0,
+            "longitude":0,
+            "latitude":0
         }
 
         for detection in r_obj:
@@ -49,7 +49,7 @@ def process_screenshots(archive_path):
                         if name_variation in transcription:
                             l_index = transcription.index(name_variation) + len(name_variation)
                     try:
-                        results["SolarIrradiance"] = float(transcription[l_index:r_index])
+                        results["measurement"] = float(transcription[l_index:r_index])
                     except Exception as e:
                         print("Results:", results)
                         print("Transcription:", transcription)
@@ -65,7 +65,7 @@ def process_screenshots(archive_path):
                     if "°" in transcription:
                         r_index = transcription.rindex("°")
                         try:
-                            results[name] = float(transcription[l_index:r_index])
+                            results[name.lower()] = float(transcription[l_index:r_index])
                         except Exception as e:
                             print("Results:", results)
                             print("Transcription:", transcription)
@@ -73,7 +73,7 @@ def process_screenshots(archive_path):
                                 print("\t", d2)
                     elif not transcription.isalpha(): #scenario where degree sign is missing
                         try:
-                            results[name] = float(transcription[l_index:r_index])
+                            results[name.lower()] = float(transcription[l_index:r_index])
                         except Exception as e:
                             print("Results:", results)
                             print("Transcription:", transcription)
@@ -93,13 +93,10 @@ def process_screenshots(archive_path):
 
 
 if __name__ == "__main__":
-    month = "February"
+    month = "July"
     archive_path = Path(getcwd()) / "Screenshots" / month
     df, failures = process_screenshots(archive_path)
-    print(df.head())
-    print(failures)
+    print("Failures:", failures)
 
-    first_img = df.iloc[0]['File'][:-4]
-    last_img = df.iloc[-1]['File'][:-4]
     output_file_name = f"{month}.csv"
     df.to_csv("Data/" + output_file_name)
