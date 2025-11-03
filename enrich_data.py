@@ -161,9 +161,7 @@ if __name__ == "__main__":
     solar_data = solar_data.drop(columns="Unnamed: 0")
 
     ### Retrieve Meta Data ###
-    metadata = pd.read_csv(METADATA_FILE)
-    metadata = metadata[["filename", "photoshop:DateCreated"]]
-    metadata = metadata.rename(columns={"photoshop:DateCreated": "timestamp"})
+    metadata = pd.read_csv(METADATA_FILE).drop(columns="Unnamed: 0")
     metadata["timestamp"] = pd.to_datetime(metadata["timestamp"])
 
     ### Enrich Manual Data W/ VC Data
