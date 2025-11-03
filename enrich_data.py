@@ -176,7 +176,7 @@ if __name__ == "__main__":
     sky_data["timestamp"] = pd.to_datetime(sky_data["timestamp"])
     sky_data = sky_data.rename(columns={"timestamp": "interval"})
     enriched_df["interval"] = enriched_df["timestamp"].apply(client.nearest_interval)
-    sky_enriched = pd.merge(sky_data, enriched_df, on="interval").drop(columns="interval")
+    sky_enriched = pd.merge(enriched_df, sky_data, on="interval", how="left").drop(columns="interval")
 
 
     sky_enriched = sky_enriched[["timestamp", "measurement", "cloudcover", "solarradiation", "sky", "filename", "latitude", "longitude"]]
