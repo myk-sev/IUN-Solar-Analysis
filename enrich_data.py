@@ -7,6 +7,7 @@ from pathlib import Path
 DATA_FOLDER = Path(os.getcwd()) / "data"
 ARCHIVE_FILE = DATA_FOLDER / "api_archive.csv"
 METADATA_FILE = DATA_FOLDER / "metadata.csv"
+SKY_FILE = DATA_FOLDER / "sky_data.csv"
 
 class VisualCrossingClient:
     """
@@ -31,6 +32,7 @@ class VisualCrossingClient:
             self.archive_path = archive_location
             self.archive = pd.read_csv(archive_location)
             self.archive["timestamp"] = pd.to_datetime(self.archive["timestamp"])
+            self.archive = self.archive.drop(columns="Unnamed: 0")
 
         else: 
             empty_df = {col_name:[] for col_name in data_types}
@@ -120,6 +122,9 @@ class VisualCrossingClient:
 
         #Retrieve new Visual Crossing data
         new_days = self.determine_data_needs(user_data[time_col])
+        if len(new_days) == 0: # end processing early when there is no new data 
+            return old_data_enriched
+
         new_data =  pd.concat([self.retrieve_daily_data(day) for day in new_days], ignore_index=True)
         self.update_archive(new_data)
 
@@ -153,7 +158,7 @@ if __name__ == "__main__":
     ### Retrieve Screenshot Data ###
     months = os.listdir("Screenshots")
     solar_data = pd.concat([pd.read_csv(DATA_FOLDER / f"{month}.csv") for month in months], ignore_index=True)
-    solar_data = solar_data.rename(columns={"File": "filename"}).drop(columns="Unnamed: 0")
+    solar_data = solar_data.drop(columns="Unnamed: 0")
 
     ### Retrieve Meta Data ###
     metadata = pd.read_csv(METADATA_FILE)
@@ -164,6 +169,15 @@ if __name__ == "__main__":
     ### Enrich Manual Data W/ VC Data
     merged_df = pd.merge(solar_data, metadata, on="filename")
     client = VisualCrossingClient(api_key, zipcode, data_types, ARCHIVE_FILE)
-    
     enriched_df = client.enrich(merged_df)
-    enriched_df.to_csv("full_dataset.csv")
+
+    ### Match Hand Recorded Sky Data with Enriched Data ###
+    sky_data = sky_data = pd.read_csv(SKY_FILE).drop(columns="Unnamed: 0")
+    sky_data["timestamp"] = pd.to_datetime(sky_data["timestamp"])
+    sky_data = sky_data.rename(columns={"timestamp": "interval"})
+    enriched_df["interval"] = enriched_df["timestamp"].apply(client.nearest_interval)
+    sky_enriched = pd.merge(sky_data, enriched_df, on="interval").drop(columns="interval")
+
+
+    sky_enriched = sky_enriched[["timestamp", "measurement", "cloudcover", "solarradiation", "sky", "filename", "latitude", "longitude"]]
+    sky_enriched.to_csv("full_dataset.csv")
