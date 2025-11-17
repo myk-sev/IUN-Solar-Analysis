@@ -3,25 +3,19 @@ from pathlib import Path
 from os import getcwd
 import pandas as pd
 import onnxruntime as ort
+from typing import Dict, Optional
 
 SCREENSHOT_FOLDER = Path(getcwd()) / "screenshots"
 OUTPUT_FOLDER = Path(getcwd()) / "data"
 
-def process_screenshots(archive_path):
+def process_screenshots(archive_path: Path) -> pd.DataFrame:
     """"Utilize OpenOCR vision model to extract solar irradiance, longitude, and latitude from SPARKvue screenshots.
 
-    [args]
-        archive_path: disc location of the screenshots. *must be a path object*
-
-    [output]
-        pd.DataFrame: solar irradiance, longitude, and latitude linked to file name
-        failures: images from which a data point could not be read
-
+    :param archive_path: disc location of the screenshots
+    :return: the data gathered for each image split into two categories: success & failure
     """
     data = []
     failures = []
-
-
 
     onnx_engine = OpenOCR(backend="onnx", device="cpu") #initialize vision model
     options = ort.SessionOptions()
@@ -86,6 +80,7 @@ def process_screenshots(archive_path):
         ### Missed Data Tracking ###
         for data_type in results:
             if results[data_type] == -1: # default value for results is -1
+                results["detection"] = detections[0][detections[0].index("\t") + 1:]
                 failures.append(results)
                 break
         else:
@@ -93,13 +88,28 @@ def process_screenshots(archive_path):
 
     return pd.DataFrame(data), pd.DataFrame(failures)
 
+def get_detection_for_image(image_path: Path) -> list[dict]:
+    """Extract detection data for a single image file.
+    
+    :param image_path: location of image file to process
+    :return: output from the model constructed into a workable object
+    """
+    onnx_engine = OpenOCR(backend="onnx", device="cpu")
+    options = ort.SessionOptions()
+    options.log_severity_level = 3
+
+    detections, _ = onnx_engine(str(image_path))
+    r_obj = eval(detections[0][detections[0].index("\t") + 1:])
+        
+    return r_obj
+
 if __name__ == "__main__":
-    month = "October"
-    archive_path =  SCREENSHOT_FOLDER / month
-    df, failures = process_screenshots(archive_path)
-    print("Failures:", failures)
+    month = "September"
+    archive_path = SCREENSHOT_FOLDER / month
+    data, failures = process_screenshots(archive_path)
+    print("Failures:", failures["filename"])
 
     data_output_location = OUTPUT_FOLDER / f"{month}.csv"
     failure_record_location = OUTPUT_FOLDER / f"{month}_failures.csv"
-    df.to_csv(data_output_location)
+    data.to_csv(data_output_location)
     failures.to_csv(failure_record_location)
