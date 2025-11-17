@@ -77,6 +77,21 @@ def process_screenshots(archive_path: Path) -> pd.DataFrame:
                             for d2 in r_obj:
                                 print("\t", d2)
 
+        # last ditch effort to find match in the event coordinate and label detection were split
+        if results["latitude"] == -1:
+            for detection in r_obj:
+                transcription = detection["transcription"]
+                if transcription.startswith("42."):
+                    transcription = transcription.replace("°", "")
+                    results["latitude"] = float(transcription)
+
+        if results["longitude"] == -1:
+            for detection in r_obj:
+                transcription = detection["transcription"]
+                if transcription.startswith("-87."):
+                    transcription = transcription.replace("°", "")
+                    results["longitude"] = float(transcription)
+
         ### Missed Data Tracking ###
         for data_type in results:
             if results[data_type] == -1: # default value for results is -1
