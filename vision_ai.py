@@ -99,5 +99,7 @@ if __name__ == "__main__":
     df, failures = process_screenshots(archive_path)
     print("Failures:", failures)
 
-    output_file_name = f"{month}.csv"
-    df.to_csv(OUTPUT_FOLDER + output_file_name)
+    data_output_location = OUTPUT_FOLDER / f"{month}.csv"
+    failure_record_location = OUTPUT_FOLDER / f"{month}_failures.csv"
+    df.to_csv(data_output_location)
+    failures.to_csv(failure_record_location)
