@@ -5,6 +5,7 @@ import pandas as pd
 import onnxruntime as ort
 
 SCREENSHOT_FOLDER = Path(getcwd()) / "screenshots"
+OUTPUT_FOLDER = Path(getcwd()) / "data"
 
 def process_screenshots(archive_path):
     """"Utilize OpenOCR vision model to extract solar irradiance, longitude, and latitude from SPARKvue screenshots.
@@ -32,9 +33,9 @@ def process_screenshots(archive_path):
 
         results = {
             "filename": img_path.name,
-            "measurement":0,
-            "longitude":0,
-            "latitude":0
+            "measurement": -1,
+            "longitude": -1,
+            "latitude": -1
         }
 
         for detection in r_obj:
@@ -84,18 +85,19 @@ def process_screenshots(archive_path):
 
         ### Missed Data Tracking ###
         for data_type in results:
-            if not results[data_type]: # default value for results is 0
-                failures.append(img_path.name)
+            if results[data_type] == -1: # default value for results is -1
+                failures.append(results)
+                break
         else:
             data.append(results)
 
-    return pd.DataFrame(data), failures
+    return pd.DataFrame(data), pd.DataFrame(failures)
 
 if __name__ == "__main__":
-    month = "July"
+    month = "October"
     archive_path =  SCREENSHOT_FOLDER / month
     df, failures = process_screenshots(archive_path)
     print("Failures:", failures)
 
     output_file_name = f"{month}.csv"
-    df.to_csv("Data/" + output_file_name)
+    df.to_csv(OUTPUT_FOLDER + output_file_name)
